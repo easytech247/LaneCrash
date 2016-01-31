@@ -1,0 +1,82 @@
+<root>:
+    id: sm
+    game_screen: game_screen
+    SplashScreen:
+        on_touch_down: root.current = "menu"
+        Label:
+            text: "TRAFFIC"
+    MenuScreen:
+        id: menu_screen
+        name: "menu"
+        mw: mw
+        MenuWidget:
+            id: mw
+            play_btn: play_btn
+            sm: sm
+            canvas.before:
+                Color:
+                    rgba: 0,.4,.9,1
+                Rectangle:
+                    size: menu_screen.size
+                    pos: menu_screen.pos
+            Image:
+                id: play_btn
+                keep_ratio: False
+                allow_stretch: True
+                source: "imgs/play.png"
+                center: root.center
+                width: root.width/4
+                height: root.height/7
+                    
+    GameScreen:
+        id: game_screen
+        name: "game"
+        field: field
+        on_enter: self.field.start()
+        Field:
+            id: field
+
+<Field>:
+    canvas.before:
+        Color:
+            rgba: 1,1,1,1
+        Rectangle:
+            size: root.size
+            pos: root.pos
+        Color:
+            rgba: .3,.4,.7,1
+        Rectangle:
+            size: (root.vehicle_width+root.vls),root.height
+            pos: ((root.center_x-(root.lane_spacing*0.5))-root.vehicle_width-root.vls),root.y
+        Rectangle:
+            size: (root.vehicle_width+root.vls),root.height
+            pos: (root.center_x+(root.lane_spacing*0.5)),root.y
+            
+        Rectangle:
+            size: root.width,(root.vehicle_width+root.vls)
+            pos: root.x,(root.center_y+(root.lane_spacing*0.5))
+            
+        Rectangle:
+            size: root.width,(root.vehicle_width+root.vls)
+            pos: root.x,((root.center_y-(root.lane_spacing*0.5))-root.vehicle_width-root.vls)
+
+           
+
+            
+<CrashPop>:
+    BoxLayout:
+        orientation: "vertical"
+        BoxLayout:
+            orientation: "vertical"
+            Label:
+                text: "Oops!!!! There was a crash"
+
+            Label:   
+                text: "SCORE: "+str(root.score)   
+        BoxLayout:   
+            Button:
+                text: "Again"
+                on_press: root.field.start()
+            Button:
+                text: "Exit"
+                on_press: app.stop()

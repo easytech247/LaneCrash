@@ -1,0 +1,40 @@
+<Field>:
+    lvlane: lvlane
+    rvlane: rvlane
+    lhlane: lhlane
+    rhlane: rhlane
+    canvas.before:
+        Color:
+            rgba: 1,0,0,1
+        Rectangle:
+            size: root.size
+            pos: root.pos
+    Lane:
+        road: root
+        id: lvlane
+        uid: "lvlane"
+        
+    Lane:
+        road: root
+        id: rvlane
+        uid: "rvlane"
+
+    Lane:
+        road: root
+        id: lhlane
+        uid: "lhlane"
+
+    Lane:
+        id: rhlane
+        uid: "rhlane"
+        
+    StartButton:
+        on_press: root.start()
+
+<Lane>:
+    canvas:
+        Color:
+            rgba: root.col
+        Rectangle:
+            size: self.size
+            pos: self.pos
