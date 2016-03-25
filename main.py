@@ -12,7 +12,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.core.window import Window
-from Vehicles import Vehicle
+from Vehicles import Car
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.popup import Popup
@@ -59,6 +59,8 @@ gdb.add_gesture(swipe_right)
 class Root(ScreenManager):
     game_screen = ObjectProperty()
     hs = ObjectProperty()
+
+            
 
 class Cbutton(ButtonBehavior,Widget):#Menu Button
     src = StringProperty()
@@ -129,7 +131,8 @@ class CrashPop(Popup):#pop up when collision is found and game is over
     
 
 class Field(Widget):
-    default_speed = NumericProperty(4)#vehicle default speed
+    default_speed = NumericProperty(0.5)#vehicle default speed
+    running_speed = NumericProperty()
     lane_spacing = NumericProperty()#space of each vehicle from ref point
     score = NumericProperty(0)
     vehicle_width = NumericProperty()
@@ -138,35 +141,66 @@ class Field(Widget):
     def __init__(self,*args,**kwargs):
         super(Field,self).__init__(**kwargs)
         self.crash_sound = SoundLoader.load("audio/crash.ogg")
-        self.speed_sound = SoundLoader.load("audio/speed.ogg")
-        self.stop_sound = SoundLoader.load("audio/stop.ogg")
+        self.speed_sound = SoundLoader.load("audio/car-run.ogg")
+        self.stop_sound = SoundLoader.load("audio/car-brake.ogg")
         self.score_sound = SoundLoader.load("audio/score.ogg")
-        self.bgm = SoundLoader.load("audio/bgm.ogg")
         self.sounds = [self.crash_sound,self.speed_sound,self.stop_sound,
-                       self.score_sound,self.bgm]
+                       self.score_sound]
         
     
+        
+    def ValidGen(self,location,*args):
+        if location == "lvl":
+            for child in self.children:
+                if child.come_from==location and child.top>(self.top-self.height/20):
+                    return False
+        elif location == "rvl":
+            for child in self.children:
+                if child.come_from ==location and child.y<(self.y+self.height/20):
+                    return False
+        elif location == "lhl":
+            for child in self.children:
+                if child.come_from==location and child.x<(self.x+self.width/35):
+                    return False
+        elif location == "rhl":
+            for child in self.children:
+                if child.come_from==location and child.right>(self.right-self.width/35):
+                    return False
+        return True
         
     def start(self):
         """
         clear the field, generate the vehicle at different positions and at 
         different intervals
         """
+        self.running_speed = self.default_speed*12
+        self.minvos=3#minimum vehicle on screen at a time
+        self.maxvos=6
         self.clear_widgets(self.children)
         self.score = 0
         for sound in self.sounds:
             sound.stop()
-        Clock.schedule_interval(self.gen_vehicle_at_rvl,random.randrange(2,5))
-        Clock.schedule_interval(self.gen_vehicle_at_lvl,random.randrange(4,6))
-        Clock.schedule_interval(self.gen_vehicle_at_lhl,random.randrange(6,7))
-        Clock.schedule_interval(self.gen_vehicle_at_rhl,random.randrange(8,9))
         Clock.schedule_interval(self.set_vehicles_on_motion,0.0001)
+        Clock.schedule_interval(self.handle_vehicles,0.000001)
         Clock.schedule_interval(self.check_collision,0.00001)
         Clock.schedule_interval(self.set_score,0.0000001)
-        self.bgm.play()
+
     
 
-        
+    def handle_vehicles(self,*args):
+        location_list = ["lvl","rvl","lhl","rhl"]
+        xvar = 0.00
+        if len(self.children)<self.minvos:
+            location = random.choice(location_list)
+            while self.ValidGen(location)==False:
+                print "no loc"
+                location = random.choice(location_list)
+            self.gen_vehicle(location)
+        if xvar == 1:
+            self.minvos+=1
+            xvar = 0
+        xvar+=0.001
+            
     def check_collision(self,*args):#checks if two or more vehicles collide
         for child in self.children:
             for otherchild in self.children:
@@ -183,10 +217,7 @@ class Field(Widget):
         do nothing
         """
         Clock.unschedule(self.set_vehicles_on_motion)
-        Clock.unschedule(self.gen_vehicle_at_lhl)
-        Clock.unschedule(self.gen_vehicle_at_lvl)
-        Clock.unschedule(self.gen_vehicle_at_rhl)
-        Clock.unschedule(self.gen_vehicle_at_rvl)
+        Clock.unschedule(self.handle_vehicles)
         Clock.unschedule(self.check_collision)
         Clock.unschedule(self.set_score)
         self.crash_sound.play()
@@ -210,7 +241,6 @@ class Field(Widget):
         
     
     def set_score(self,*args):#sets the scores when vehicles successfully get off the screen
-        score_sound = SoundLoader.load("audio/score.ogg")
         for child in self.children:
             if (child.come_from == "lvl" and child.top<self.y):
                 self.score_sound.play()
@@ -263,9 +293,31 @@ class Field(Widget):
                     child.is_moving = False
                 else:
                     child.is_moving = True
+                    
+        self.default_speed+=0.0000000000000000001
 
 
-                
+    def distanceFromTouch(self,vehicle,touch,*args):
+        tx = touch.x
+        ty = touch.y
+        cx = vehicle.x
+        cy = vehicle.y
+        rx = math.fabs((tx-cx))
+        ry = math.fabs((ty-cy))
+        result = math.sqrt(((rx**2)+(ry**2)))
+        return result
+    
+    def isClosest(self,touch,location):
+        res = []
+        for child in self.children:
+            if child.come_from==location:
+                res.append(self.distanceFromTouch(child, touch))
+        for child in self.children:
+            if child.come_from==location and self.distanceFromTouch(child, touch)==min(res):
+                return child
+        
+            
+        
     def on_touch_down(self,touch,*args):
         """
         get the points for the gesture and also process touch position to
@@ -276,12 +328,15 @@ class Field(Widget):
         self.gpoints.append(touch.pos)
         for child in self.children:
             if child.collide_point(*touch.pos) and child.is_moving:
-                child.speed = 0
-            elif child.collide_point(*touch.pos) and not child.is_moving:
-                child.speed = self.default_speed
-        for child in self.children:
-            if child.come_from == self.process_touch_pos(touch):
                 child.set = True
+            elif child.collide_point(*touch.pos) and not child.is_moving:
+                child.set = True
+
+
+        for child in self.children:
+            if child.come_from == self.process_touch_pos(touch) and self.isClosest(touch,child.come_from)==child:
+                child.set = True
+        
                 
 
         super(Field,self).on_touch_down(touch)
@@ -289,7 +344,9 @@ class Field(Widget):
     
     def on_touch_move(self,touch,*args):
         self.gpoints.append(touch.pos)#more points for the gesture
-            
+        for child in self.children:
+            if child.collide_point(*touch.pos):
+                child.set = True
                 
         
     def on_touch_up(self,touch,*args):
@@ -306,7 +363,15 @@ class Field(Widget):
             and 
             (self.gpoints[-1][1])-(self.gpoints[0][1])==0
             ):
-            print "normal touch"
+            for child in self.children:
+                if child.set == True and child.is_moving:
+                    child.speed = 0
+                    child.set = False
+                    self.stop_sound.play()
+                elif child.set ==True and not child.is_moving:
+                    child.speed = self.default_speed
+                    child.set = False
+
         gesture = Gesture()
         gesture.add_stroke(point_list=self.gpoints)
         gesture.normalize()
@@ -316,30 +381,37 @@ class Field(Widget):
                 if child.come_from == "lvl" and child.set and match[1].name=="swipe_up":
                     child.speed = 0
                     self.stop_sound.play()
+                    child.set = False
                 elif child.come_from == "lvl" and child.set and match[1].name=="swipe_down":
-                    child.speed = self.default_speed*3
+                    child.speed = self.running_speed
                     self.speed_sound.play()
+                    child.set = False
                     
                 elif child.come_from == "rvl" and child.set and match[1].name == "swipe_up":
-                    child.speed = self.default_speed*3
+                    child.speed = self.running_speed
                     self.speed_sound.play()
+                    child.set = False
                 elif child.come_from == "rvl" and child.set and match[1].name=="swipe_down":
                     child.speed = 0
                     self.stop_sound.play()
+                    child.set = False
                     
                 elif child.come_from == "lhl" and child.set and match[1].name=="swipe_left":
-                    child.speed = self.default_speed*3
+                    child.speed = self.running_speed
                     self.speed_sound.play()
+                    child.set = False
                 elif child.come_from == "lhl" and child.set and match[1].name == "swipe_right":
                     child.speed = 0
                     self.stop_sound.play()
-                    
+                    child.set = False
                 elif child.come_from == "rhl" and child.set and match[1].name == "swipe_left":
                     child.speed = 0
                     self.stop_sound.play()
+                    child.set = False
                 elif child.come_from == "rhl" and child.set and match[1].name == "swipe_right":
-                    child.speed = self.default_speed*3
+                    child.speed = self.running_speed
                     self.speed_sound.play()
+                    child.set = False
                 
     
     def on_size(self,*args):
@@ -347,8 +419,8 @@ class Field(Widget):
         repositioning the vehicles in the field when the size of the 
         window increases or reduces
         """
-        self.vehicle_height= self.height/20
-        self.vehicle_width = self.width/15
+        self.vehicle_height= self.height/7
+        self.vehicle_width = self.width/20
         self.lane_spacing = self.width/40
         self.lane_spacing = 20
         for child in self.children:
@@ -392,86 +464,64 @@ class Field(Widget):
                 
     def process_touch_pos(self,touch,*args):
         #returns the lane in which the touch falls on
-        if (touch.x<(self.center_x-(self.lane_spacing*0.5))
-            and 
-            touch.x>(self.center_x-(self.lane_spacing*0.5)-(self.vehicle_width)-(self.vls))):
-            return  "lvl"
-        elif (
-            touch.x>(self.center_x+(self.lane_spacing*0.5))
-            and 
-            touch.x<(self.center_x+(self.lane_spacing*0.5)+self.vehicle_width+self.vls)
-            ):
+        mxcl = int(self.center_x-(self.lane_spacing*0.5))
+        mxclv = int(mxcl-(self.vehicle_width)-(self.vls))
+        pxcl = int(self.center_x+(self.lane_spacing*0.5))
+        pxclv = int(pxcl+self.vehicle_width+self.vls)
+        pycl = int(self.center_y+(self.lane_spacing*0.5))
+        pyclv = int(pycl+self.vehicle_width+self.vls)
+        mycl = int(self.center_y-(self.lane_spacing*0.5))
+        myclv = int(mycl-self.vehicle_width-self.vls)
+        if touch.x in range(mxclv,mxcl):
+            return "lvl"
+        elif touch.x in range(pxcl,pxclv):
             return "rvl"
                     
-        elif (
-            touch.y>(self.center_y+(self.lane_spacing*0.5))
-            and 
-            touch.y<(self.center_y+(self.lane_spacing*0.5)+self.vehicle_width+self.vls)
-            ):
+        elif touch.y in range(pycl,pyclv):
             return "lhl"
-        elif (
-            touch.y<(self.center_y-(self.lane_spacing*0.5))
-            and 
-            touch.y>(self.center_y-(self.lane_spacing*0.5)-self.vehicle_width-self.vls)
-            ):
+        elif touch.y in range(myclv,mycl):
             return "rhl"
         
-    def gen_vehicle_at_lvl(self,*args):
-        vehicle = Vehicle()
-        vehicle.background_color = get_random_color(1)
-        vehicle.width = self.vehicle_width
-        vehicle.height = self.vehicle_height
-        vehicle.top = self.top+vehicle.height
-        vehicle.come_from= "lvl"
-        vehicle.destination = -vehicle.height
-        vehicle.destination_reached = False
-        vehicle.right = self.center_x-(self.lane_spacing*0.5)-(self.vls*0.5)
+    def gen_vehicle(self,location,*args):
+        vehicle = Car()
         vehicle.speed = self.default_speed
         vehicle.set = False
-        self.add_widget(vehicle) 
-
-        
-    def gen_vehicle_at_rvl(self,*args):
-        vehicle = Vehicle()
-        vehicle.background_color = get_random_color(1)
-        vehicle.width = self.vehicle_width
-        vehicle.height = self.vehicle_height
-        vehicle.y = self.y-vehicle.height
-        vehicle.come_from = "rvl"
-        vehicle.destination = self.height+vehicle.height
-        vehicle.destination_reached = False
-        vehicle.x = self.center_x+(self.lane_spacing*0.5)+(self.vls*0.5)
-        vehicle.speed = self.default_speed
-        vehicle.set = False
-        self.add_widget(vehicle)
-
-    def gen_vehicle_at_lhl(self,*args):
-        vehicle = Vehicle()
-        vehicle.background_color = get_random_color(1)
-        vehicle.width = self.vehicle_height
-        vehicle.height = self.vehicle_width
-        vehicle.right = self.right+vehicle.width
-        vehicle.y = self.center_y+(self.lane_spacing*0.5)+(self.vls*0.5)
-        vehicle.come_from = "lhl"
-        vehicle.destination = -vehicle.width
-        vehicle.destination_reached = False
-        vehicle.speed = self.default_speed
-        vehicle.set = False
-        self.add_widget(vehicle) 
-
-        
-    def gen_vehicle_at_rhl(self,*args):
-        vehicle = Vehicle()
-        vehicle.background_color = get_random_color(1)
-        vehicle.width = self.vehicle_height
-        vehicle.height = self.vehicle_width
-        vehicle.x = self.x-vehicle.width
-        vehicle.top = self.center_y-(self.lane_spacing*0.5)-(self.vls*0.5)
-        vehicle.come_from = "rhl"
-        vehicle.destination = self.width+vehicle.width
-        vehicle.destination_reached = False
-        vehicle.speed = self.default_speed
-        vehicle.set = False
+        vehicle.update()
+        vehicle.destination_reached=False
+        if location == "lvl":
+            vehicle.angle = 180
+            vehicle.width = self.vehicle_width
+            vehicle.height = self.vehicle_height
+            vehicle.top = self.top+vehicle.height
+            vehicle.come_from= location
+            vehicle.destination = -vehicle.height
+            vehicle.right = self.center_x-(self.lane_spacing*0.5)-(self.vls*0.5)
+        elif location == "rvl":
+            vehicle.angle = 0
+            vehicle.width = self.vehicle_width
+            vehicle.height = self.vehicle_height
+            vehicle.y = self.y-vehicle.height
+            vehicle.come_from = location
+            vehicle.destination = self.height+vehicle.height
+            vehicle.x = self.center_x+(self.lane_spacing*0.5)+(self.vls*0.5)
+        elif location == "lhl":
+            vehicle.source = "imgs/newcar.png"
+            vehicle.angle = 180
+            vehicle.width = self.vehicle_height
+            vehicle.height = self.vehicle_width
+            vehicle.right = self.right+vehicle.width
+            vehicle.y = self.center_y+(self.lane_spacing*0.5)+(self.vls*0.5)
+            vehicle.come_from = location
+            vehicle.destination = -vehicle.width
+        elif location == "rhl":
+            vehicle.source = "imgs/newcar.png"
+            vehicle.angle = 0
+            vehicle.width = self.vehicle_height
+            vehicle.height = self.vehicle_width
+            vehicle.x = self.x-vehicle.width
+            vehicle.top = self.center_y-(self.lane_spacing*0.5)-(self.vls*0.5)
+            vehicle.come_from = location
+            vehicle.destination = self.width+vehicle.width
         self.add_widget(vehicle) 
 
         
@@ -483,8 +533,21 @@ class Field(Widget):
 
 class TrafficApp(App):
     def build(self):
-        self.root = Root()
-        return self.root
+        self.game = Root()
+        Window.bind(on_keyboard=self.BackBtnClicked)
+        return self.game
+    def BackBtnClicked(self,window,key,*largs):
+        if key == 27 and self.game.current == "menu":
+            self.stop()
+        elif key == 27 and self.game.current == "game":
+            return True
+        elif key == 27 and (self.game.current == "help" or self.game.current=="highscore"):
+            self.game.current = "menu"
+            return True
+    def on_pause(self):
+        return True
+    def on_resume(self):
+        return True
     
 if __name__ == "__main__":
     TrafficApp().run()

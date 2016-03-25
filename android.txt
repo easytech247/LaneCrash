@@ -1,3 +1,3 @@
+title = Lane Crash
+orientation = landscape
 author = Shaibujnr
-orientation = portrait
-title = Traffic

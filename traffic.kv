@@ -17,35 +17,37 @@
                 Rectangle:
                     size: menu_screen.size
                     pos: menu_screen.pos
+                    source: "imgs/mbg.jpg"
             Cbutton:
                 id: play_btn
                 src: "imgs/play.png"
                 x: root.x+(root.width/8)
                 y: root.y+(root.height/9)
-                width: root.width/4
+                width: root.width/10
                 on_press: mw.goto_game_screen()
                 
             Cbutton:
                 id: htp_btn
-                src: "imgs/src.jpg"
-                center: root.center
-                width: root.width/4
+                src: "imgs/Help.png"
+                x: play_btn.right+root.width/25
+                y: root.y+(root.height/9)
+                width: root.width/10
                 on_press: mw.goto_help_screen()
                 
             Cbutton:
                 id: exit_btn
-                src: "imgs/exit.jpg"
-                x: root.width-self.width
-                y: root.height-self.height
-                width: root.width/4
+                src: "imgs/exit.png"
+                x: htp_btn.right+root.width/25
+                y: root.y+(root.height/9)
+                width: root.width/10
                 on_press: app.stop()
                 
             Cbutton:
                 id: hs
-                src: "imgs/hs.jpg"
-                x: root.x+(root.width/15)
-                y: root.top - self.height- (root.height/15)
-                width: root.width/4
+                src: "imgs/coin.png"
+                x: exit_btn.right+root.width/25
+                y: root.y+(root.height/9)
+                width: root.width/10
                 on_press: mw.goto_hs_screen()
                     
     GameScreen:
@@ -77,45 +79,26 @@
         
 
 <Field>:
-    canvas.before:
-        Color:
-            rgba: 1,1,1,1
+    canvas.before:            
         Rectangle:
             size: root.size
             pos: root.pos
-            source: 'imgs/dsbg.jpg'
-        Color:
-            rgba: .3,.4,.7,1
-        Rectangle:
-            size: (root.vehicle_width+root.vls),root.height
-            pos: ((root.center_x-(root.lane_spacing*0.5))-root.vehicle_width-root.vls),root.y
-            source: 'imgs/lbg.jpg'
-        Rectangle:
-            size: (root.vehicle_width+root.vls),root.height
-            pos: (root.center_x+(root.lane_spacing*0.5)),root.y
-            source: 'imgs/lbg.jpg'
-            
-        Rectangle:
-            size: root.width,(root.vehicle_width+root.vls)
-            pos: root.x,(root.center_y+(root.lane_spacing*0.5))
-            source: 'imgs/lbg.jpg'            
-        Rectangle:
-            size: root.width,(root.vehicle_width+root.vls)
-            pos: root.x,((root.center_y-(root.lane_spacing*0.5))-root.vehicle_width-root.vls)
-            source: 'imgs/lbg.jpg'
+            source: "imgs/new-road.png"
            
 
             
 <CrashPop>:
     BoxLayout:
+        padding: 0,root.height/10
         id: crashbl
         canvas.before:
             Rectangle:
                 size: crashbl.size
                 pos: crashbl.pos 
-                source: "imgs/bgp.png"
+                source: "imgs/mbg.jpg"
         orientation: "vertical"
         BoxLayout:
+            size_hint_y: 5
             orientation: "vertical"
             Label:
                 text: "Oops!!!! There was a crash"
@@ -123,14 +106,27 @@
             Label:   
                 text: "SCORE: "+str(root.score)   
         BoxLayout:   
-            Button:
+            size_hint_y: 2.5
+            padding: (root.width-(again_btn.width*3))/2,0
+            Cbutton:
+                id: again_btn
+                size_hint_x: None
+                width: self.height
                 text: "Again"
+                src: "imgs/play.png"
                 on_press: root.field.start()
-            Button:
+            Cbutton:
+                id: menu_btn
+                size_hint_x: None
+                width: self.height
                 text: "Menu"
                 on_press: app.root.current = "menu"
-            Button:
+            Cbutton:
+                id: exit: btn
+                size_hint_x: None
+                width: self.height
                 text: "Exit"
+                src: "imgs/exit.png"
                 on_press: app.stop()
 
                 
@@ -170,6 +166,11 @@
             TutImage:
         
 <HighScoreWidget>:
+    canvas.before:
+        Rectangle:
+            pos: root.pos
+            size: root.size
+            source: "imgs/mbg.jpg"
     Label:
         center: root.center
         width: root.width/4
